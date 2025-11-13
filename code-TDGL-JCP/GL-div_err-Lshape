@@ -1,0 +1,163 @@
+load "Element_Mixte"
+load "Element_P3"
+
+// int nh=320;
+// real x0=0,x1=1.;
+// real y0=0,y1=1.;
+// mesh Th=square(nh,nh,[x0+(x1-x0)*x,y0+(y1-y0)*y]);
+
+int nh1=160, nh2=320;
+border a(t=-0.5,0){x=t;y=-0.5;label=1;}
+border b(t=-0.5,0){x=0;y=t;label=1;}
+border c(t=0,0.5){x=t;y=0;label=1;}
+border d(t=0,0.5){x=0.5;y=t;label=1;}
+border e(t=-0.5,0.5){x=-t;y=0.5;label=1;}
+border f(t=-0.5,0.5){x=-0.5;y=-t;label=1;}
+//mesh Th=buildmesh(a(160)+b(160)+c(160)+d(160)+e(320)+f(320));
+mesh Th=buildmesh(a(nh1)+b(nh1)+c(nh1)+d(nh1)+e(nh2)+f(nh2));
+//mesh Th=buildmesh(a(20)+b(20)+c(20)+d(20)+e(40)+f(40));
+//plot(Th,wait=true,ps="Th.eps");
+ 
+real kappa=1., sigma=1., T=1.;
+real tau=0.0001;
+real N=T/tau;
+real L2errA, L2errP, L2errcurlA, L2errdivA, L2errdp, H1errA, H1errP, S1=10, S2=10, epsilon=0;
+
+fespace Rh(Th,BDM1Ortho); 
+Rh [A1,A2], [B1,B2], [A01,A02], [Am1,Am2];
+fespace Vh(Th,P1); 
+Vh<complex> psi, psi0, cpsi0, psim1, phi;
+
+real tt;
+
+func Aexa1=exp(tt-y)*sin(pi*x);
+func Aexa2=exp(tt-x)*sin(2.*pi*y);
+func psiexa=exp(-tt)*(cos(2.*pi*x)+1i*cos(pi*y));
+func f1=(sigma+abs(psiexa)^2)*Aexa1-(1/kappa)*exp(-2.*tt)*2.*pi*sin(2.*pi*x)*cos(pi*y);
+         //-epsilon*(-(pi^2)*Aexa1-2.*pi*exp(tt-x)*cos(2.*pi*y));
+func f2=(sigma+abs(psiexa)^2)*Aexa2-(1/kappa)*exp(-2.*tt)*(-pi)*cos(2.*pi*x)*sin(pi*y);
+         //-epsilon*(-pi*exp(tt-y)*cos(pi*x)-4.*(pi^2)*Aexa2);
+func g=(abs(psiexa)^2.-2.)*psiexa;
+
+func dxAexa1=pi*exp(tt-y)*cos(pi*x);
+func dyAexa1=-exp(tt-y)*sin(pi*x);
+func dxAexa2=-exp(tt-x)*sin(2.*pi*y);
+func dyAexa2=2.*pi*exp(tt-x)*cos(2.*pi*y);
+func dxpsiexa=exp(-tt)*2.*pi*(-sin(2.*pi*x));
+func dypsiexa=exp(-tt)*pi*1i*(-sin(pi*y));
+
+func H=dxAexa2-dyAexa1;
+func H1=-exp(tt+tau-x)*sin(2.*pi*y)+exp(tt+tau-y)*sin(pi*x);
+func H2=-exp(tt-tau-x)*sin(2.*pi*y)+exp(tt-tau-y)*sin(pi*x);
+
+// func Aexa1=((1.+tt)^3)*(x^3)*((1-x)^3)*y;
+// func Aexa2=((1.+tt)^4)*(y^3)*((1-y)^3)*x;
+// func psiexa=((1.+tt)^3)*(cos(pi*x)+1i*cos(pi*y));
+// func f1=sigma*3.*((1.+tt)^2)*(x^3)*((1-x)^3)*y+abs(psiexa)^2*Aexa1+(1/kappa)*((1+tt)^6)*(-pi*sin(pi*x)*cos(pi*y));
+// func f2=sigma*4.*((1+tt)^3)*(y^3)*((1-y)^3)*x+abs(psiexa)^2*Aexa2+(1/kappa)*((1+tt)^6)*pi*cos(pi*x)*sin(pi*y);
+// func g=(abs(psiexa)^2-1.)*psiexa+3.*((1+tt)^2)*(cos(pi*x)+1i*cos(pi*y));
+
+// func dxAexa1=((1.+tt)^3)*(3.*(x^2)*((1.-x)^3)-(x^3)*3.*((1.-x)^2))*y;
+// func dyAexa1=((1.+tt)^3)*(x^3)*((1-x)^3);
+// func dxAexa2=((1.+tt)^4)*(y^3)*((1-y)^3);
+// func dyAexa2=((1.+tt)^4)*(3.*(y^2)*((1.-y)^3)-(y^3)*3.*((1.-y)^2))*x;
+// func dxpsiexa=((1.+tt)^3)*pi*(-sin(pi*x));
+// func dypsiexa=((1.+tt)^3)*pi*1i*(-sin(pi*y));
+
+// func H=dxAexa2-dyAexa1;
+// func H1=((1.+tt+tau)^4)*(y^3)*((1.-y)^3)-((1.+tt+tau)^3)*(x^3)*((1.-x)^3);
+// func H2=((1.+tt-tau)^4)*(y^3)*((1.-y)^3)-((1.+tt-tau)^3)*(x^3)*((1.-x)^3);
+
+problem GLP1(psi,phi,solver=sparsesolver)=int2d(Th,qforder=5)((1./tau)*psi*phi)-int2d(Th,qforder=5)((1./tau)*psi0*phi)
+                    +int2d(Th,qforder=5)(0.5*((1i/kappa)*dx(psi)+A01*psi)*((-1i/kappa)*dx(phi)+A01*phi))
+					+int2d(Th,qforder=5)(0.5*((1i/kappa)*dy(psi)+A02*psi)*((-1i/kappa)*dy(phi)+A02*phi))
+                    +int2d(Th,qforder=5)(0.5*((1i/kappa)*dx(psi0)+A01*psi0)*((-1i/kappa)*dx(phi)+A01*phi))
+					+int2d(Th,qforder=5)(0.5*((1i/kappa)*dy(psi0)+A02*psi0)*((-1i/kappa)*dy(phi)+A02*phi))
+					+int2d(Th,qforder=5)(S1*psi*phi)-int2d(Th,qforder=5)(S1*psi0*phi)
+				    +int2d(Th,qforder=5)(0.5*(abs(psi0)^2-1.)*psi*phi)
+					+int2d(Th,qforder=5)(0.5*(abs(psi0)^2-1.)*psi0*phi)
+					-int2d(Th,qforder=5)(g*phi)
+					-int2d(Th,qforder=5)(((1i/kappa)*dxpsiexa+Aexa1*psiexa)*((-1i/kappa)*dx(phi)+Aexa1*phi))
+					-int2d(Th,qforder=5)(((1i/kappa)*dypsiexa+Aexa2*psiexa)*((-1i/kappa)*dy(phi)+Aexa2*phi));
+					
+problem GLA1([A1,A2],[B1,B2],solver=sparsesolver)=int2d(Th,qforder=5)((sigma/tau)*(A1*B1+A2*B2))
+                            -int2d(Th,qforder=5)((sigma/tau)*(A01*B1+A02*B2))
+							+int2d(Th,qforder=5)(epsilon*0.5*(dx(A1)+dy(A2))*(dx(B1)+dy(B2)))
+							+int2d(Th,qforder=5)(epsilon*0.5*(dx(A01)+dy(A02))*(dx(B1)+dy(B2)))
+                            +int2d(Th,qforder=5)(0.5*(dx(A2)-dy(A1))*(dx(B2)-dy(B1)))
+							+int2d(Th,qforder=5)(0.5*(dx(A02)-dy(A01))*(dx(B2)-dy(B1)))
+							+int2d(Th,qforder=5)(0.5*(abs(psi0))^2*(A1*B1+A2*B2))
+							+int2d(Th,qforder=5)(0.5*(abs(psi0))^2*(A01*B1+A02*B2))
+							+int2d(Th,qforder=5)(S2*(A1*B1+A2*B2))-int2d(Th,qforder=5)(S2*(A01*B1+A02*B2))
+							+int2d(Th,qforder=5)(real(cpsi0*(1i/kappa)*dx(psi0))*B1)
+							+int2d(Th,qforder=5)(real(cpsi0*(1i/kappa)*dy(psi0))*B2)
+							-int2d(Th,qforder=5)(0.5*(H1+H)*(dx(B2)-dy(B1)))
+							-int2d(Th,qforder=5)(epsilon*(dxAexa1+dyAexa2)*(dx(B1)+dy(B2)))
+							-int2d(Th,qforder=5)(f1*B1+f2*B2);
+
+problem GLPn(psi,phi,solver=sparsesolver)=int2d(Th,qforder=5)((0.5/tau)*psi*phi)-int2d(Th,qforder=5)((0.5/tau)*psim1*phi)
+                        +int2d(Th,qforder=5)(0.5*((1i/kappa)*dx(psi)+A01*psi)*((-1i/kappa)*dx(phi)+A01*phi))
+						+int2d(Th,qforder=5)(0.5*((1i/kappa)*dx(psim1)+A01*psim1)*((-1i/kappa)*dx(phi)+A01*phi))
+				  	    +int2d(Th,qforder=5)(0.5*((1i/kappa)*dy(psi)+A02*psi)*((-1i/kappa)*dy(phi)+A02*phi))
+						+int2d(Th,qforder=5)(0.5*((1i/kappa)*dy(psim1)+A02*psim1)*((-1i/kappa)*dy(phi)+A02*phi))
+						+int2d(Th,qforder=5)(S1*psi*phi)+int2d(Th,qforder=5)(S1*(-2*psi0+psim1)*phi)
+					    +int2d(Th,qforder=5)(0.5*(abs(psi0)^2-1.)*psi*phi)+int2d(Th)(0.5*(abs(psi0)^2-1.)*psim1*phi)
+						-int2d(Th,qforder=5)(g*phi)
+						-int2d(Th,qforder=5)(((1i/kappa)*dxpsiexa+Aexa1*psiexa)*((-1i/kappa)*dx(phi)+Aexa1*phi))
+						-int2d(Th,qforder=5)(((1i/kappa)*dypsiexa+Aexa2*psiexa)*((-1i/kappa)*dy(phi)+Aexa2*phi));
+
+problem GLAn([A1,A2],[B1,B2],solver=sparsesolver)=int2d(Th,qforder=5)(0.5*(sigma/tau)*(A1*B1+A2*B2))
+                                -int2d(Th,qforder=5)(0.5*(sigma/tau)*(Am1*B1+Am2*B2))
+	                            +int2d(Th,qforder=5)(epsilon*0.5*(dx(A1)+dy(A2))*(dx(B1)+dy(B2)))
+								+int2d(Th,qforder=5)(epsilon*0.5*(dx(Am1)+dy(Am2))*(dx(B1)+dy(B2)))
+                                +int2d(Th,qforder=5)(0.5*(dx(A2)-dy(A1))*(dx(B2)-dy(B1)))
+								+int2d(Th,qforder=5)(0.5*(dx(Am2)-dy(Am1))*(dx(B2)-dy(B1)))
+								+int2d(Th,qforder=5)(S2*(A1*B1+A2*B2))+int2d(Th,qforder=5)(-2*S2*(A01*B1+A02*B2)+S2*(Am1*B1+Am2*B2))
+								+int2d(Th,qforder=5)(real(cpsi0*(1i/kappa)*dx(psi0))*B1)
+							    +int2d(Th,qforder=5)(real(cpsi0*(1i/kappa)*dy(psi0))*B2)
+							    +int2d(Th,qforder=5)(0.5*(abs(psi0))^2*(A1*B1+A2*B2))
+								+int2d(Th,qforder=5)(0.5*(abs(psi0))^2*(Am1*B1+Am2*B2))
+							    -int2d(Th,qforder=5)(0.5*(H1+H2)*(dx(B2)-dy(B1)))
+								-int2d(Th,qforder=5)(epsilon*(dxAexa1+dyAexa2)*(dx(B1)+dy(B2)))
+							    -int2d(Th,qforder=5)(f1*B1+f2*B2);
+								
+
+tt=0;
+
+[A01,A02]=[Aexa1,Aexa2];  psi0=psiexa; cpsi0=conj(psi0);
+
+tt=tau;
+GLP1;
+GLA1;
+
+for(int k=1; k<N; k++)
+{
+	[Am1,Am2]=[A01,A02];  [A01,A02]=[A1,A2]; 
+	psim1=psi0;  psi0=psi;  cpsi0=conj(psi0);
+    tt=k*tau; 
+	GLPn;  
+	GLAn;
+}
+
+tt=T;
+
+L2errA=sqrt(int2d(Th)(abs(A1-Aexa1)^2+abs(A2-Aexa2)^2)); 
+L2errP=sqrt(int2d(Th)(abs(psi-psiexa)^2));
+L2errcurlA=sqrt(int2d(Th)(abs(dx(A2)-dy(A1)-dxAexa2+dyAexa1)^2));
+//L2errdivA=sqrt(int2d(Th)(abs(dx(A1)+dy(A2)-dxAexa1-dyAexa2)^2));
+//H1errA=sqrt(L2errA^2+L2errcurlA^2+L2errdivA^2);
+L2errdp=sqrt(int2d(Th)(abs(dx(psi)-dxpsiexa)^2+abs(dy(psi)-dypsiexa)^2));
+H1errP=sqrt(L2errP^2+L2errdp^2);
+
+
+cout << "L2error of A =" << L2errA <<endl;
+cout << "L2error of curlA =" << L2errcurlA <<endl;
+// cout << "L2error of divA =" << L2errdivA <<endl;
+
+cout << "L2error of psi =" << L2errP <<endl;
+cout << "L2error of dpsi =" << L2errdp <<endl;
+
+//cout << "H1error of A =" << H1errA <<endl;
+//cout << "H1error of psi =" << H1errP <<endl;
+
+	

@@ -1,0 +1,90 @@
+int nh=64;
+real x0=0,x1=1;
+real y0=0,y1=1;
+mesh Th=square(nh,nh,[x0+(x1-x0)*x,y0+(y1-y0)*y]); 
+
+load "Element_Mixte"
+load "medit"
+
+real kappa=10, sigma=1, T=2;
+real tau=0.0001;
+real N=T/tau;
+real epsilon=0;
+real[int] G(T/tau+1);
+real[int] TN(10), cpu(10);
+TN=[0.2,0.4,0.6,0.8,1.,1.2,1.4,1.6,1.8,2.];
+int j=0;
+
+fespace Rh(Th,BDM1Ortho);  Rh [A1,A2], [B1,B2], [A01,A02];
+Rh [Aexa1,Aexa2]=[0,0];
+fespace Vh(Th,P1);  Vh<complex> psi, psi0, cpsi0, psik, apsi, phi;
+Vh<complex> psiexa=0.6+0.8i;
+Vh cA, divA;
+
+real H=5;
+
+[A01,A02]=[Aexa1,Aexa2];  psi0=psiexa; cpsi0=conj(psi0);
+
+solve GLA1([A1,A2],[B1,B2])=int2d(Th)((2*sigma/tau)*(A1*B1+A2*B2))-int2d(Th)((2*sigma/tau)*(A01*B1+A02*B2))
+                            +int2d(Th)(epsilon*(dx(A01)+dy(A02))*(dx(B1)+dy(B2)))
+                            +int2d(Th)((dx(A02)-dy(A01))*(dx(B2)-dy(B1)))
+							+int2d(Th)((abs(psi0))^2*(A01*B1+A02*B2))
+							+int2d(Th)(real(cpsi0*(1i/kappa)*dx(psi0))*B1)
+							+int2d(Th)(real(cpsi0*(1i/kappa)*dy(psi0))*B2)
+							-int2d(Th)(H*(dx(B2)-dy(B1)));
+real dp=1;
+//while(dp>1e-06)
+for(int j1=1; j1<=10; j1++)	
+{
+	    psik=psi;
+	    solve GLP(psi,phi)=int2d(Th)((1/tau)*psi*conj(phi))-int2d(Th)((1/tau)*psi0*conj(phi))
+                           +int2d(Th)(0.5*((1i/kappa)*dx(psi)+A1*psi)*((-1i/kappa)*dx(conj(phi))+A1*conj(phi)))
+					       +int2d(Th)(0.5*((1i/kappa)*dy(psi)+A2*psi)*((-1i/kappa)*dy(conj(phi))+A2*conj(phi)))
+						   +int2d(Th)(0.5*((1i/kappa)*dx(psi0)+A1*psi0)*((-1i/kappa)*dx(conj(phi))+A1*conj(phi)))
+					       +int2d(Th)(0.5*((1i/kappa)*dy(psi0)+A2*psi0)*((-1i/kappa)*dy(conj(phi))+A2*conj(phi)))
+				           +int2d(Th)(0.5*(0.5*(abs(psi0)^2+abs(psik)^2)-1)*psik*conj(phi))
+					       +int2d(Th)(0.5*(0.5*(abs(psi0)^2+abs(psik)^2)-1)*psi0*conj(phi));
+	    dp=sqrt(int2d(Th)(abs(psi-psik)^2));
+}
+G[0]=0.5*int2d(Th)((abs((1i/kappa)*dx(psi)+A1*psi))^2+(abs((1i/kappa)*dy(psi)+A2*psi))^2)
+         +0.5*int2d(Th)(epsilon*abs(dx(A1)+dy(A2))^2)
+	     +0.5*int2d(Th)((abs(dx(A2)-dy(A1)-H))^2)+0.25*int2d(Th)((abs(psi)^2-1)^2);		
+		 
+for(int k=1; k<N; k++)
+{
+	psi0=psi;  [A01,A02]=[A1,A2]; cpsi0=conj(psi0);	
+    solve GLA([A1,A2],[B1,B2])=int2d(Th)((sigma/tau)*(A1*B1+A2*B2))-int2d(Th)((sigma/tau)*(A01*B1+A02*B2))
+	                           +int2d(Th)(epsilon*0.5*(dx(A1)+dy(A2))*(dx(B1)+dy(B2)))
+							   +int2d(Th)(epsilon*0.5*(dx(A01)+dy(A02))*(dx(B1)+dy(B2)))
+                               +int2d(Th)(0.5*(dx(A2)-dy(A1))*(dx(B2)-dy(B1)))
+							   +int2d(Th)(0.5*(dx(A02)-dy(A01))*(dx(B2)-dy(B1)))
+					    	   +int2d(Th)(real(cpsi0*(1i/kappa)*dx(psi0))*B1)
+						       +int2d(Th)(real(cpsi0*(1i/kappa)*dy(psi0))*B2)
+						       +int2d(Th)(0.5*(abs(psi0))^2*(A1*B1+A2*B2))
+							   +int2d(Th)(0.5*(abs(psi0))^2*(A01*B1+A02*B2))
+						       -int2d(Th)(H*(dx(B2)-dy(B1)));			
+    dp=1;
+    //while(dp>1e-06){
+    for(int j2=1; j2<=10; j2++){
+	    psik=psi0;
+	    solve GLP(psi,phi)=int2d(Th)((1/tau)*psi*conj(phi))-int2d(Th)((1/tau)*psi0*conj(phi))
+                           +int2d(Th)(0.5*((1i/kappa)*dx(psi)+A1*psi)*((-1i/kappa)*dx(conj(phi))+A1*conj(phi)))
+					       +int2d(Th)(0.5*((1i/kappa)*dy(psi)+A2*psi)*((-1i/kappa)*dy(conj(phi))+A2*conj(phi)))
+						   +int2d(Th)(0.5*((1i/kappa)*dx(psi0)+A1*psi0)*((-1i/kappa)*dx(conj(phi))+A1*conj(phi)))
+					       +int2d(Th)(0.5*((1i/kappa)*dy(psi0)+A2*psi0)*((-1i/kappa)*dy(conj(phi))+A2*conj(phi)))
+				           +int2d(Th)(0.5*(0.5*(abs(psi0)^2+abs(psik)^2)-1)*psik*conj(phi))
+					       +int2d(Th)(0.5*(0.5*(abs(psi0)^2+abs(psik)^2)-1)*psi0*conj(phi));
+	    dp=sqrt(int2d(Th)(abs(psi-psik)^2));
+	}
+    G[k]=0.5*int2d(Th)((abs((1i/kappa)*dx(psi)+A1*psi))^2+(abs((1i/kappa)*dy(psi)+A2*psi))^2)
+         +0.5*int2d(Th)(epsilon*abs(dx(A1)+dy(A2))^2)
+	     +0.5*int2d(Th)((abs(dx(A2)-dy(A1)-H))^2)+0.25*int2d(Th)((abs(psi)^2-1)^2);	
+	if ((k+1.)*tau==TN(j)) 
+	{cpu[j]=clock(); j=j+1;}
+	else {continue;} 				  				   
+}
+
+ofstream GGsquare("GG_Square_1e_4_CN_kk10_epsilon0.txt");
+GGsquare << G << endl;  
+cout<<"CPU time =" << cpu << endl;
+cout<<"CPU time now =" << clock() << endl;
