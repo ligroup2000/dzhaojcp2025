@@ -1,6 +1,8 @@
 
 For testing convergence rate: GL-div_err-Lshape (for Lshape domain)
                               GL-div_err-square (for Square domain)
+							  GL-div_err-Circular-1 (for Circular domain, exact solution: \psi=e^{-t}(\sin (\pi (x^2+y^2))+i\cos(\pi (x^2+y^2))), A=[e^{t-x^2-y^2}\sin(\pi (x^2+y^2)), e^{t-x^2-y^2}\cos(\pi (x^2+y^2))]^T)
+							  GL-div_err-Circular-2 (for Circular domain, exact solution: \psi=e^{-t}(\cos (\pi (x^2+y^2))+i\cos(\pi (x^2+y^2))), A=[e^{t-x^2-y^2}\sin(\pi (x^2+y^2)), e^{t-x^2-y^2}\sin(2\pi (x^2+y^2))]^T)
 							  
 For simulation: GL-div_energy - holes
                 GL-div_energy - Lshape
@@ -10,8 +12,8 @@ Solving by using alternating Crank-Nicolson method: GL-div_energy -CN- Lshape
                                                     GL-div_energy -CN- square
 
 For ploting figures (Matlab code): GL_div_Lshape
-                                  GL_div_Square
-					              GL_div_Holes_H11
-					              GL_div_Holes_H08
+                                   GL_div_Square
+					               GL_div_Holes_H11
+					               GL_div_Holes_H08
 
-For discrete energy curves (Matlab code): Energy_data							 
+For discrete energy curves (Matlab code): Energy_data						 
